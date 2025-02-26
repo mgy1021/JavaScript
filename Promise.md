@@ -585,3 +585,199 @@ Promise.reject(3).then(
 // reject的值是3
 Promise.reject(3).finally(() => {});
 ```
+
+# 6. Promise.race()
+
+`Promise.race()`方法同样是将多个 Promise 实例，包装成一个新的 Promise 实例。
+
+```javascript
+const p = Promise.race([p1, p2, p3]);
+```
+
+上面代码中，只要`p1`、`p2`、`p3`之中有一个实例率先改变状态，`p`的状态就跟着改变。那个率先改变的 Promise 实例的返回值，就传递给`p`的回调函数。
+
+`Promise.race()`方法的参数与`Promise.all()`方法一样，如果不是 Promise 实例，就会先调用下面讲到的`Promise.resolve`方法，将参数转为 Promise 实例，再进一步处理。
+
+```javascript
+const p = Promise.race([
+  fetch("/resource"),
+  new Promise(function (resolve, reject) {
+    setTimeout(() => reject(new Error("request timeout")), 5000);
+  }),
+]);
+
+p.then(console.log).catch(console.error);
+```
+
+上面的代码，如果 5 秒之内`fetch`方法无法返回结果，变量`p`的状态就会变为`rejected`，从而触发`catch`方法指定的回调函数。
+
+# Promise.allSettled()
+
+有时候，我们希望等到一组异步操作都结束了，不管每一个操作是成功还是失败，再进行下一步操作。但是，现有的 Promise 方法很难实现这个要求。
+`Promise.all()`方法只适合所有异步操作都成功的情况，如果一个操作失败，就无法满足要求。
+
+```javascript
+const urls = [url_1, url_2, url_3];
+const requests = urls.map((x) => fetch(x));
+
+try {
+  await Promise.all(requests);
+  console.log("所有请求都成功。");
+} catch {
+  console.log("至少一个请求失败，其他请求可能还没结束。");
+}
+```
+
+上面示例中，`Promise.all()`可以确定所有请求都成功了，但是只要有一个请求失败，它就会报错，而不管另外的请求是否结束。
+
+为了解决这个问题，ES2022 引入了`Promise.allSettled()`方法，用来确定一组异步操作是否都结束了（不管成功还是失败）。所以，它的名字叫`Settled`,包含了“fullfilled”和“rejected”两种情况。
+
+`Promise.allSettled()`方法接受一个数组作为参数，数组的每个成员都是一个 Promise 对象，并返回一个新的 Promise 对象。只有等到参数数组的所有 Promise 对象都发生状态变更（不管是`fulfilled`还是`rejected`），返回的 Promise 对象才会发生状态变更。 返回的新的 Promise 一旦发生状态变更，状态总是`fulfilled`,不会变成`rejected`。状态变成`fulfilled`后，它的回调函数会接收到一个数组作为参数，该数组的每个成员对应前面数组的每个 Promise 对象。
+
+# Promise.any()
+
+ES2021 引入了`Promise.any()`方法，该方法接受一组 Promise 实例作为参数，包装成一个新的 Promise 实例返回。
+
+```javascript
+Promise.any([
+  fetch("https://home/xxx").then(() => "home"),
+  fetch("https://blog/xxx").then(() => "blog"),
+  fetch("https://docs/xxx").then(() => "docs"),
+])
+  .then((first) => {
+    console.log(first);
+  })
+  .catch((error) => {
+    console.log(error);
+  });
+```
+
+只要参数实例有一个变成`fulfilled`状态，包装实例就会变成`fulfilled`状态；如果所有参数实例都变成`rejected`状态，包装实例就会变成`rejected`状态。
+
+`Promise.any()`跟`Promise.race()`方法很像，只有一点不同，就是`Promise.any()`不会因为某个 Promise 变成`rejected`状态而结束，必须等到所有参数 Promise 变化`rejected`状态才会结束。
+
+# Promise.resolve()
+
+有时需要将现有对象转为 Promise 对象，`Promise.resolve()`方法就起来这个作用。
+
+```javascript
+const jsPromise = Promise.resolve($.ajax("/whatever.json"));
+```
+
+上面的代码将 JQuery 生成的`deferred`对象，转为一个新的 Promise 对象。
+`Promise.resolve()`等价于下面的写法。
+
+```javascript
+Promise.resolve("foo");
+// 等价于
+new Promise((resolve) => resolve("foo"));
+```
+
+`Promise.resolve()`方法的参数分成四种情况。
+
+## （1）参数是一个 Promise 实例
+
+如果参数是 Promise 实例，那么`Promise.resolve`将不做任何修改、原封不动地返回这个实例。
+
+## （2）参数是一个`thenable`对象
+
+`thenable`对象指的是具有`then`方法的对象，比如下面的这个对象
+
+```javascript
+let thenable = {
+  then: function (resolve, reject) {
+    resolve(42);
+  },
+};
+```
+
+`Promise.resolve()`方法会将这个对象转为 Promise 对象，然后立即执行`thenable`对象的`then()`方法
+
+```javascript
+let thenable = {
+  then: function (resolve, reject) {
+    resolve(42);
+  },
+};
+
+let p1 = Promise.resolve(thenable);
+p1.then(function (value) {
+  console.log(value); // 42
+});
+```
+
+上面的代码中，`thenable`对象的`then()`方法执行后，对象`p1`的状态就变为`resolved`，从而立即执行最后那个`then()`方法指定的回调函数，输出 42。
+
+## （3）参数不是具有`then()`方法的对象，或根本就不是对象
+
+如果参数的原始值，或者是一个不具有`then()`方法的对象，则`Promise.resolve()`方法返回一个新的 Promise 对象，状态为`resolved`。
+
+```javascript
+const p = Promise.resolve("Hello");
+
+p.then(function (s) {
+  console.log(s);
+});
+// Hello
+```
+
+上面的代码生成一个新的 Promise 对象的实例`p`,由于字符串`Hello`不属于异步操作（判断方法是字符串对象不具有 then 方法），返回 Promise 实例的状态从一生成就是`resolved`，所以回调函数会立即执行。`Promise.resolve()`方法的参数，会同时传给回调函数。
+
+## （4）不带有任何参数
+
+`Promise.resolve()`方法允许调用时不带参数，直接返回一个`resolved`状态的 Promise 对象。
+
+所以，如果希望得到一个 Promise 对象，比较方便的方法就是直接调用`Promise.resolve()`方法。
+
+```javascript
+const p = Promise.resolve();
+
+p.then(function () {
+  // ...
+});
+```
+
+上面代码的变量`p`就是一个 Promise 对象。
+需要注意的是，立即`resolve()`的 Promise 对象，是在本轮“事件循环”(eventloop)的结束时执行，而不是在下一轮“事件循环”的开始时。
+
+```javascript
+setTimeout(function () {
+  console.log("three");
+});
+
+Promise.resolve().then(function () {
+  console.log("two");
+});
+
+console.log("one");
+```
+
+上面代码中，`setTimeout(fn,0)`在下一轮“事件循环”开始时执行，`Promise.resolve()`在本轮“事件循环”结束时执行，`console.log('one')`则是立即执行，因此最先输出。
+
+# Promise.reject()
+
+`Promise.reject(reason)`方法也可以返回一个新的 Promise 实例，该实例的状态为`reject`。
+
+```javascript
+const p = Promise.reject("出错了");
+// 等同于
+const p = new Promise((resolve, reject) => reject("出错了"));
+
+p.then(null, function (s) {
+  console.log(s);
+});
+
+// 出错了
+```
+
+上面代码生成一个 Promise 对象的实例`p`，状态为`rejected`，回调函数会立即执行。
+
+`Promise.reject()`方法的参数，会原封不动地作为`reject`的理由，变成后续方法的参数。
+
+```javascript
+Promise.reject("出错了").catch((e) => {
+  console.log(e === "出错了");
+});
+```
+
+上面代码中，`Promise.reject()`方法的参数是一个字符串，后面`catch()`方法的参数`e`就是这个字符串。
