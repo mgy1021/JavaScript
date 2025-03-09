@@ -611,7 +611,7 @@ p.then(console.log).catch(console.error);
 
 上面的代码，如果 5 秒之内`fetch`方法无法返回结果，变量`p`的状态就会变为`rejected`，从而触发`catch`方法指定的回调函数。
 
-# Promise.allSettled()
+# 7.Promise.allSettled()
 
 有时候，我们希望等到一组异步操作都结束了，不管每一个操作是成功还是失败，再进行下一步操作。但是，现有的 Promise 方法很难实现这个要求。
 `Promise.all()`方法只适合所有异步操作都成功的情况，如果一个操作失败，就无法满足要求。
@@ -634,7 +634,7 @@ try {
 
 `Promise.allSettled()`方法接受一个数组作为参数，数组的每个成员都是一个 Promise 对象，并返回一个新的 Promise 对象。只有等到参数数组的所有 Promise 对象都发生状态变更（不管是`fulfilled`还是`rejected`），返回的 Promise 对象才会发生状态变更。 返回的新的 Promise 一旦发生状态变更，状态总是`fulfilled`,不会变成`rejected`。状态变成`fulfilled`后，它的回调函数会接收到一个数组作为参数，该数组的每个成员对应前面数组的每个 Promise 对象。
 
-# Promise.any()
+# 8.Promise.any()
 
 ES2021 引入了`Promise.any()`方法，该方法接受一组 Promise 实例作为参数，包装成一个新的 Promise 实例返回。
 
@@ -656,7 +656,7 @@ Promise.any([
 
 `Promise.any()`跟`Promise.race()`方法很像，只有一点不同，就是`Promise.any()`不会因为某个 Promise 变成`rejected`状态而结束，必须等到所有参数 Promise 变化`rejected`状态才会结束。
 
-# Promise.resolve()
+# 9.Promise.resolve()
 
 有时需要将现有对象转为 Promise 对象，`Promise.resolve()`方法就起来这个作用。
 
@@ -754,7 +754,7 @@ console.log("one");
 
 上面代码中，`setTimeout(fn,0)`在下一轮“事件循环”开始时执行，`Promise.resolve()`在本轮“事件循环”结束时执行，`console.log('one')`则是立即执行，因此最先输出。
 
-# Promise.reject()
+# 10.Promise.reject()
 
 `Promise.reject(reason)`方法也可以返回一个新的 Promise 实例，该实例的状态为`reject`。
 
